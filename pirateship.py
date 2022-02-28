@@ -6,7 +6,7 @@
 #
 # Distributed under terms of the MIT license.
 
-import requests, re, json, sys
+import requests, re, json, sys, subprocess, urllib
 from tabulate import tabulate
 from os.path import expanduser
 
@@ -49,7 +49,7 @@ def get_trackers():
         matches = re.findall(pattern, raw_trackers)
         if len(matches) > 0:
             for tracker in matches:
-                tracker_list.append(tracker.replace("'", ""))
+                tracker_list.append(urllib.parse.unquote(tracker.replace("'", "")))
 
     return tracker_list
 
@@ -68,9 +68,9 @@ def search(keyword):
     link_results = []
     i = 0
     for search in search_result:
-        magnet_link = MAGNET_FORMAT.format(search["info_hash"], search["name"])
+        magnet_link = MAGNET_FORMAT.format(search["info_hash"], urllib.parse.quote(search["name"]))
         for tracker in tracker_list:
-            magnet_link = magnet_link + "&tr=" + tracker
+            magnet_link = magnet_link + "&tr=" + urllib.parse.quote_plus(tracker)
 
         results.append([i, search["name"], search["info_hash"]])
         link_results.append(magnet_link)
@@ -89,6 +89,15 @@ def search(keyword):
                     selected_index = int(option)
                     if selected_index < len(link_results) and selected_index >= 0:
                         print("链接:" + link_results[selected_index])
+                        add_to_syno = input("是否添加到群辉(y/n)")
+                        if add_to_syno == "y":
+                            add_task = subprocess.Popen([expanduser("~") + "/bin/synology.sh", "add", link_results[selected_index]],
+                                                        stdout=subprocess.PIPE,
+                                                        stderr=subprocess.PIPE)
+
+                            stdout, stderr = add_task.communicate()
+                            print(stdout)
+                            print(stderr)
                         break;
                     else:
                         raise ValueError("")
