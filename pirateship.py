@@ -14,8 +14,14 @@ PIRATE_API_URL = "https://apibay.org"
 
 MAGNET_FORMAT = "magnet:?xt=urn:btih:{}&dn={}"
 
+PROXY_HOST=''
+PROXY_PORT=''
+
 def request(url, params={}):
-    return requests.get(url, params)
+    if len(PROXY_HOST) > 0 and len(PROXY_PORT) > 0:
+        return requests.get(url, params, proxies=dict(http="socks5h://" + PROXY_HOST + ":" + PROXY_PORT, https="socks5h://" + PROXY_HOST + ":" + PROXY_PORT))
+    else:
+        return requests.get(url, params)
 
 def get_trackers():
     tracker_list = []
