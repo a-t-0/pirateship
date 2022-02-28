@@ -8,6 +8,7 @@
 
 import requests, re, json, sys
 from tabulate import tabulate
+from os.path import expanduser
 
 PIRATE_URL = "https://thepiratebay.org"
 PIRATE_API_URL = "https://apibay.org"
@@ -16,6 +17,16 @@ MAGNET_FORMAT = "magnet:?xt=urn:btih:{}&dn={}"
 
 PROXY_HOST=''
 PROXY_PORT=''
+
+try:
+    with open(expanduser("~") + "/.pirateship/config") as f:
+        for line in f.readlines():
+            if not line.find("PROXY_HOST=") == -1:
+                PROXY_HOST = line[11:]
+            elif not line.find("PROXY_PORT=") == -1:
+                PROXY_PORT = line[11:]
+except FileNotFoundError:
+    pass
 
 def request(url, params={}):
     if len(PROXY_HOST) > 0 and len(PROXY_PORT) > 0:
