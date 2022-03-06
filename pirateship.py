@@ -18,6 +18,11 @@ MAGNET_FORMAT = "magnet:?xt=urn:btih:{}&dn={}"
 PROXY_HOST=''
 PROXY_PORT=''
 
+MAIN_CAT = {'0' : '???'}
+SUB_CAT = {'0' : '???'}
+
+raw_main_js = None
+
 try:
     with open(expanduser("~") + "/.pirateship/config") as f:
         for line in f.readlines():
@@ -34,13 +39,52 @@ def request(url, params={}):
     else:
         return requests.get(url, params)
 
+
+def get_readable_size(size, decimal_places=2):
+    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']:
+        if size < 1024.0 or unit == 'PiB':
+            break
+        size /= 1024.0
+    return f"{size:.{decimal_places}f} {unit}"
+
+def ensure_main_js():
+    global raw_main_js
+    if raw_main_js == None:
+        raw_main_js = request(PIRATE_URL + "/static/main.js")
+
+def fillin_categories():
+    global raw_main_js
+    ensure_main_js()
+
+    raw_categories = ""
+    for main_line in raw_main_js.iter_lines():
+        if re.search("function print_category", str(main_line)):
+            raw_categories = main_line.decode("utf-8")
+
+    if len(raw_categories) > 0:
+        pattern = "cc\[0\]==[0-9]{1}\)main='[a-zA-Z0-9-_ \(\)\/]+'|cat==[0-9]{3}\)return maintxt\+'[a-zA-Z0-9-_ \(\)\/]*'"
+        matches = re.findall(pattern, raw_categories)
+        for match in matches:
+            if match.startswith("cc[0]"):
+                num = "(?!cc\[0\]==)[0-9]{1}(?=\))"
+                ptn = "(?!main=')[a-zA-Z0-9-_ \(\)\/]+(?=')"
+                cc_matches = re.findall(ptn, match)
+                num_matches = re.findall(num, match)
+                MAIN_CAT[num_matches[0]] = cc_matches[0]
+            else:
+                num = "(?!cat==)[0-9]{3}(?=\))"
+                ptn = "(?!maintxt\+')[a-zA-Z0-9-_ \(\)\/]+(?=')"
+                cat_matches = re.findall(ptn, match)
+                num_matches = re.findall(num, match)
+                SUB_CAT[num_matches[0]] = cat_matches[0]
+
 def get_trackers():
+    global raw_main_js
+    ensure_main_js()
     tracker_list = []
-    raw_main = request(PIRATE_URL + "/static/main.js")
-    raw_main_content = raw_main.content
 
     raw_trackers = ""
-    for main_line in raw_main.iter_lines():
+    for main_line in raw_main_js.iter_lines():
         if re.search("function print_trackers", str(main_line)):
             raw_trackers = main_line.decode("utf-8")
 
@@ -53,6 +97,13 @@ def get_trackers():
 
     return tracker_list
 
+def get_category(category_num):
+    main = MAIN_CAT[category_num[:1]]
+    sub = SUB_CAT[category_num]
+    
+    return main + " > " + sub
+
+
 def get_search_result_list(keyword):
     result_list = []
     converted_keyword = keyword.replace(' ', '+')
@@ -61,6 +112,7 @@ def get_search_result_list(keyword):
     return json.loads(raw_search_results.content)
 
 def search(keyword):
+    fillin_categories()
     tracker_list = get_trackers()
     search_result = get_search_result_list(keyword)
 
@@ -72,12 +124,12 @@ def search(keyword):
         for tracker in tracker_list:
             magnet_link = magnet_link + "&tr=" + urllib.parse.quote_plus(tracker)
 
-        results.append([i, search["name"], search["info_hash"]])
+        results.append([i, get_category(search["category"]), search["name"], get_readable_size(int(search["size"]))])
         link_results.append(magnet_link)
         i = i + 1
 
     if len(results) > 0:
-        final_output = tabulate(results, headers=['编号', '名称', '哈希'], tablefmt="grid")
+        final_output = tabulate(results, headers=['编号', '类型', '名称', '大小'], tablefmt="grid")
         print(final_output)
 
         while 1:
