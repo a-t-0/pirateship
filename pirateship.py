@@ -7,7 +7,9 @@
 # Distributed under terms of the MIT license.
 
 import requests, re, json, sys, subprocess, urllib
-from tabulate import tabulate
+from rich.table import Table
+from rich.console import Console
+from rich import box
 from os.path import expanduser
 
 PIRATE_URL = "https://thepiratebay.org"
@@ -116,21 +118,25 @@ def search(keyword):
     tracker_list = get_trackers()
     search_result = get_search_result_list(keyword)
 
-    results = []
     link_results = []
     i = 0
+    table = Table(title="PirateShip", box=box.ROUNDED)
+    table.add_column("编号", justify="right", style="cyan")
+    table.add_column("类型", justify="right", style="magenta")
+    table.add_column("名称", justify="right", style="green")
+    table.add_column("大小", justify="right", style="red")
     for search in search_result:
         magnet_link = MAGNET_FORMAT.format(search["info_hash"], urllib.parse.quote(search["name"]))
         for tracker in tracker_list:
             magnet_link = magnet_link + "&tr=" + urllib.parse.quote_plus(tracker)
 
-        results.append([i, get_category(search["category"]), search["name"], get_readable_size(int(search["size"]))])
+        table.add_row(str(i), get_category(search["category"]), search["name"], get_readable_size(int(search["size"])))
         link_results.append(magnet_link)
         i = i + 1
 
-    if len(results) > 0:
-        final_output = tabulate(results, headers=['编号', '类型', '名称', '大小'], tablefmt="grid")
-        print(final_output)
+    if len(link_results) > 0:
+        console = Console()
+        console.print(table)
 
         while 1:
             option = input("选择编号或输入exit退出:")
