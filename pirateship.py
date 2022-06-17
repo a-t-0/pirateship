@@ -16,7 +16,8 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-PIRATE_URL = "https://thepiratebay.org"
+#PIRATE_URL = "https://thepiratebay.org"
+PIRATE_URL = "https://proxifiedpiratebay.org/"
 PIRATE_API_URL = "https://apibay.org"
 
 MAGNET_FORMAT = "magnet:?xt=urn:btih:{}&dn={}"
